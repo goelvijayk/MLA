@@ -49,10 +49,9 @@ for  (i in 1:c(dim(training)[2])) {
   if (s==1) {exclude<- c(exclude,i)} else{exclude<-exclude}
 }
 
-exclude<- c(exclude, c(dim(training)[2])) #remove output varianvel from predictors data frame
+exclude<- c(exclude, c(dim(training)[2])) #remove output variables from predictors data frame
 training<- training[,-exclude] #52 variables left
-trainPP<- training
-
+trainPP<- training #create pre-processed dataset. was useful in keeping code standard when other models were tested.
 ```
 Choices tried for pre-process were 
 
@@ -87,6 +86,40 @@ valy<- valing$classe
 valing<- valing[,-exclude] #52 variables left
 valPP<- valing
 
-confusionMatrix(predict(modRF, valPP), valy)
+```
 
+```{r echo=FALSE}
+library(caret)
+library(randomForest)
+setwd("~/Training/Machine learning")
+Raw<- read.csv("trainRaw.csv")
+
+inTrain<- createDataPartition(y=Raw$classe, p=0.9, list=FALSE)
+trainRaw<- Raw[inTrain,]
+valRaw<- Raw[-inTrain,]
+trainy<- trainRaw$classe
+nsv<-  nearZeroVar(trainRaw, saveMetrics=TRUE)
+include<- which(nsv$nzv==FALSE) #use nzv column as source of truth
+training<- trainRaw[,include]
+exclude<- c(1:6) #generic data uncorrelated to output
+NALimit<- dim(training)[1]*0.4 #set limit on when to ignore a column if too many NAs : 40%
+for  (i in 1:c(dim(training)[2])) {
+  s<- (sum(is.na(training[,i])) > NALimit)*1
+  if (s==1) {exclude<- c(exclude,i)} else{exclude<-exclude}
+}
+
+exclude<- c(exclude, c(dim(training)[2])) #remove output varianvel from predictors data frame
+training<- training[,-exclude] #52 variables left
+trainPP<- training
+
+modRF<- randomForest(trainy~., data=trainPP, ntree=20, norm.votes=FALSE)
+print("Confusion Matrix and statistics for training dataset")
+confusionMatrix(predict(modRF, trainPP), trainy)
+valing<- valRaw[,include]
+valy<- valing$classe
+valing<- valing[,-exclude] #52 variables left
+valPP<- valing
+
+print("Confusion Matrix and statistics for out of sample dataset")
+confusionMatrix(predict(modRF, valPP), valy)
 ```

@@ -1,0 +1,157 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Vijay Goel"
+date: "January 16, 2015"
+output: html_document
+---
+####Executive Summary
+This document builds a model to predict type of exercise from an activity tracking dataset. Random Forest performs better than Decision tree, and yields >99% accuracy.
+
+#### Background and Problem
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set.
+
+#### Method used for building model
+**Initiation - load libraries, set parameters, data download, data upload, data split into training and validation**
+```
+library(caret)
+library(randomForest)
+setwd("~/Training/Machine learning")
+set.seed(673)
+
+url<- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(url, destfile = "./trainRaw.csv", method = "curl")
+Raw<- read.csv("trainRaw.csv")
+
+inTrain<- createDataPartition(y=Raw$classe, p=0.9, list=FALSE)
+trainRaw<- Raw[inTrain,]
+valRaw<- Raw[-inTrain,]
+
+trainy<- trainRaw$classe
+
+```
+
+A few choices were evaluated for volume of inTrain dataset. 0.6, 0.7 and  0.8 and 0.9. Out of sample Accuracy of chosen RF model kept increasing with increasing training data volume. This held true across multiple values of seeds. This is also intuitive because after removing columns with too many NAs, the data volume has become low. Hence, 90% of data was used for training, against usual norm of 60-70%. Details of pre-processing and model selection are below. 
+
+
+**Basic pre-processing - Identify/remove near zero values, remove columns having no logical correlation to output, remove columns with too many NAs**
+```
+nsv<-  nearZeroVar(trainRaw, saveMetrics=TRUE)
+include<- which(nsv$nzv==FALSE) #use nzv column as source of truth
+
+training<- trainRaw[,include]
+
+exclude<- c(1:6) #generic data uncorrelated to output
+NALimit<- dim(training)[1]*0.4 #set limit on when to ignore a column if too many NAs : 40%
+for  (i in 1:c(dim(training)[2])) {
+  s<- (sum(is.na(training[,i])) > NALimit)*1
+  if (s==1) {exclude<- c(exclude,i)} else{exclude<-exclude}
+}
+
+exclude<- c(exclude, c(dim(training)[2])) #remove output variables from predictors data frame
+training<- training[,-exclude] #52 variables left
+trainPP<- training #create pre-processed dataset. was useful in keeping code standard when other models were tested.
+```
+Choices tried for pre-process were 
+
+1. Removal of columns with Near Zero Value. This likely was not necessary when NA removal was so large and explicit. However, we still ran the data set through this, just to be extra sure. Processing time was not a problem. That said, this method did not kick out all the variables with too many NAs. This implies that some of those variables are useful for prediction and carry important information. However, given limited knowledge of dataset, imputation would not be informed enough. Also, given model was giving reasonable accuracy, this information was discarded.
+
+2. Removal of columns with too many NAs (40% was used as cut-off). This cut-off was clear, because there were no border-line cases. Columns with NAs just had too many NAs to impute.
+
+3. Principal Component Analysis: When tried, this reduced number of PCA factors to 20. However, impact on Accuracy was not favorable. It could have helped with model speed, but given that model building was running very fast, PCAs were discarded.
+
+**Build Model**
+```
+modRF<- randomForest(trainy~., data=trainPP, ntree=20, norm.votes=FALSE)
+
+```
+Models tried were Random Forest and Decision Tree. Performance of Random Forest was consistently better. 
+
+randomForest function was used instead of RF in Caret package because Caret was too processing intensive, and took too long to build the model.
+
+Accuracy varied with choice of seed, which suggests that ensemble might improve performance. However, choosing higher share of training dataset for Random Forest model would also be reasonably close (also observed by fitting models). RF was chosen with more data, instead of choosing Ensemble, to keep model faster.
+
+####Error Estimation
+Out of sample error was expected to be slightly lower (~99% accuracy), given accuracy of model on testing data was ~100%. Sensitivity and specificity were also expected to be in 99% range.
+
+**Key Results on validation data to compare out of sample error**
+```
+This code processes validation (out of sample) data, and creates confusion matrices
+
+confusionMatrix(predict(modRF, trainPP), trainy)
+
+valing<- valRaw[,include]
+valy<- valing$classe
+valing<- valing[,-exclude] #52 variables left
+valPP<- valing
+
+```
+
+```
+Confusion Matrix and statistics for training dataset
+          Reference
+Prediction    A    B    C    D    E
+         A 5022    0    0    0    0
+         B    0 3418    0    0    0
+         C    0    0 3080    0    0
+         D    0    0    0 2895    0
+         E    0    0    0    0 3247
+
+Overall Statistics
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9998, 1)
+    No Information Rate : 0.2843     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+ Mcnemar's Test P-Value : NA         
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000   1.0000   1.0000   1.0000   1.0000
+Specificity            1.0000   1.0000   1.0000   1.0000   1.0000
+Pos Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
+Neg Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
+Prevalence             0.2843   0.1935   0.1744   0.1639   0.1838
+Detection Rate         0.2843   0.1935   0.1744   0.1639   0.1838
+Detection Prevalence   0.2843   0.1935   0.1744   0.1639   0.1838
+Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000
+
+```
+```
+Confusion Matrix and statistics for out of sample dataset
+
+          Reference
+Prediction   A   B   C   D   E
+         A 558   1   0   0   0
+         B   0 378   3   0   1
+         C   0   0 339   1   0
+         D   0   0   0 318   1
+         E   0   0   0   2 358
+
+Overall Statistics
+                                          
+               Accuracy : 0.9954          
+                 95% CI : (0.9913, 0.9979)
+    No Information Rate : 0.2847          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.9942          
+ Mcnemar's Test P-Value : NA              
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000   0.9974   0.9912   0.9907   0.9944
+Specificity            0.9993   0.9975   0.9994   0.9994   0.9988
+Pos Pred Value         0.9982   0.9895   0.9971   0.9969   0.9944
+Neg Pred Value         1.0000   0.9994   0.9981   0.9982   0.9988
+Prevalence             0.2847   0.1934   0.1745   0.1638   0.1837
+Detection Rate         0.2847   0.1929   0.1730   0.1622   0.1827
+Detection Prevalence   0.2852   0.1949   0.1735   0.1628   0.1837
+Balanced Accuracy      0.9996   0.9974   0.9953   0.9950   0.9966
+
+```

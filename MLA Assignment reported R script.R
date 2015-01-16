@@ -19,11 +19,9 @@ valRaw<- Raw[-inTrain,]
 trainy<- trainRaw$classe
 
 nsv<-  nearZeroVar(trainRaw, saveMetrics=TRUE)
-#include<- rownames(nsv[nsv$nzv==FALSE,]) #use nzv column as source of truth
 include<- which(nsv$nzv==FALSE) #use nzv column as source of truth
 
 training<- trainRaw[,include]
-#training <- trainRaw
 
 exclude<- c(1:6) #generic data uncorrelated to output
 NALimit<- dim(training)[1]*0.4 #set limit on when to ignore a column if too many NAs : 40%
@@ -35,22 +33,10 @@ for  (i in 1:c(dim(training)[2])) {
 exclude<- c(exclude, c(dim(training)[2])) #remove output varianvel from predictors data frame
 training<- training[,-exclude] #52 variables left
 
-dim(training)
-
-#dim(training)
-######################
-
-#do PCA
-
-#preProc<- preProcess(training, method='pca')
-#trainPP<- predict(preProc, training)
 trainPP<- training
 
-
-#modFit <- train(trainy~., data = trainPP, method = 'rpart')
 modRF<- randomForest(trainy~., data=trainPP, ntree=20, norm.votes=FALSE)
 confusionMatrix(predict(modRF, trainPP), trainy)
-
 
 ########################
 ###Validate

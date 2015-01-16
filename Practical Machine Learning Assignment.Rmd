@@ -1,7 +1,7 @@
 ---
 title: "Practical Machine Learning Assignment"
 author: "Vijay Goel"
-date: "January 06, 2015"
+date: "January 16, 2015"
 output: html_document
 ---
 ####Executive Summary
@@ -88,38 +88,70 @@ valPP<- valing
 
 ```
 
-```{r echo=FALSE}
-library(caret)
-library(randomForest)
-setwd("~/Training/Machine learning")
-Raw<- read.csv("trainRaw.csv")
+```
+Confusion Matrix and statistics for training dataset
+          Reference
+Prediction    A    B    C    D    E
+         A 5022    0    0    0    0
+         B    0 3418    0    0    0
+         C    0    0 3080    0    0
+         D    0    0    0 2895    0
+         E    0    0    0    0 3247
 
-inTrain<- createDataPartition(y=Raw$classe, p=0.9, list=FALSE)
-trainRaw<- Raw[inTrain,]
-valRaw<- Raw[-inTrain,]
-trainy<- trainRaw$classe
-nsv<-  nearZeroVar(trainRaw, saveMetrics=TRUE)
-include<- which(nsv$nzv==FALSE) #use nzv column as source of truth
-training<- trainRaw[,include]
-exclude<- c(1:6) #generic data uncorrelated to output
-NALimit<- dim(training)[1]*0.4 #set limit on when to ignore a column if too many NAs : 40%
-for  (i in 1:c(dim(training)[2])) {
-  s<- (sum(is.na(training[,i])) > NALimit)*1
-  if (s==1) {exclude<- c(exclude,i)} else{exclude<-exclude}
-}
+Overall Statistics
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9998, 1)
+    No Information Rate : 0.2843     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+ Mcnemar's Test P-Value : NA         
 
-exclude<- c(exclude, c(dim(training)[2])) #remove output varianvel from predictors data frame
-training<- training[,-exclude] #52 variables left
-trainPP<- training
+Statistics by Class:
 
-modRF<- randomForest(trainy~., data=trainPP, ntree=20, norm.votes=FALSE)
-print("Confusion Matrix and statistics for training dataset")
-confusionMatrix(predict(modRF, trainPP), trainy)
-valing<- valRaw[,include]
-valy<- valing$classe
-valing<- valing[,-exclude] #52 variables left
-valPP<- valing
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000   1.0000   1.0000   1.0000   1.0000
+Specificity            1.0000   1.0000   1.0000   1.0000   1.0000
+Pos Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
+Neg Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
+Prevalence             0.2843   0.1935   0.1744   0.1639   0.1838
+Detection Rate         0.2843   0.1935   0.1744   0.1639   0.1838
+Detection Prevalence   0.2843   0.1935   0.1744   0.1639   0.1838
+Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000
 
-print("Confusion Matrix and statistics for out of sample dataset")
-confusionMatrix(predict(modRF, valPP), valy)
+```
+```
+Confusion Matrix and statistics for out of sample dataset
+
+          Reference
+Prediction   A   B   C   D   E
+         A 558   1   0   0   0
+         B   0 378   3   0   1
+         C   0   0 339   1   0
+         D   0   0   0 318   1
+         E   0   0   0   2 358
+
+Overall Statistics
+                                          
+               Accuracy : 0.9954          
+                 95% CI : (0.9913, 0.9979)
+    No Information Rate : 0.2847          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.9942          
+ Mcnemar's Test P-Value : NA              
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000   0.9974   0.9912   0.9907   0.9944
+Specificity            0.9993   0.9975   0.9994   0.9994   0.9988
+Pos Pred Value         0.9982   0.9895   0.9971   0.9969   0.9944
+Neg Pred Value         1.0000   0.9994   0.9981   0.9982   0.9988
+Prevalence             0.2847   0.1934   0.1745   0.1638   0.1837
+Detection Rate         0.2847   0.1929   0.1730   0.1622   0.1827
+Detection Prevalence   0.2852   0.1949   0.1735   0.1628   0.1837
+Balanced Accuracy      0.9996   0.9974   0.9953   0.9950   0.9966
+
 ```
